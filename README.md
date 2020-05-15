@@ -1,5 +1,5 @@
 # Autosplitter for Human: Fall-Flat
- ## Autostarter, Autosplitter, and Autoresetter for Any% and Checkpoint%. Written by Permamiss
+ ## Autostarter, Autosplitter, and Autoresetter for Any% and Checkpoint%
 
 ### Instructions:
 1. Open LiveSplit
@@ -28,3 +28,5 @@
 
 For any further questions, please navigate to the [Human: Fall Flat SRCOM Forum](https://www.speedrun.com/human_fall_flat/forum) and create a **New thread**.
 Looking for pre-made splits, or tools that will allow you to see the exact collision of the end trigger as well as a speedometer for your character, or perhaps something else? Go to the [Human: Fall Flat SRCOM Resources](https://www.speedrun.com/human_fall_flat/resources) and take a look around!
+
+###### Autosplitter & Readme written by Permamiss
