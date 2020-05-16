@@ -1,5 +1,5 @@
 /*
-	Written by Permamiss & Daroot Leafstorm
+	Written by Permamiss
 	
 	
 Documentation Notes
