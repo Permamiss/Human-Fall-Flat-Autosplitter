@@ -143,33 +143,25 @@ init		// called when the script finds the game process
 	vars.log("CheatCodes.climbCheat address found at: 0x" + vars.ptrClimbCheat.ToString("X8"));
 	vars.log("CheatCodes.throwCheat address found at: 0x" + vars.ptrThrowCheat.ToString("X8"));
 
-	/* The following offsets/fields are for the Game class in v1073981 of HFF, which we can access via the vars.ptrGameInstance pointer
-		offset: fieldName (class/type)
-		 C : startupXP (StartupExperienceController)
-		10 : levels (str[])
-		14 : editorPickLevels (str[])
-		40 : levelCount (int)
+	/* The following offsets/fields are for the Game class in HFF, which we can access via the vars.ptrGameInstance pointer
+	
+	[offset: fieldName (class/type)]
+	 v1073981
 		44 : currentLevelNumber (int)
 		48 : currentCheckpointNumber (int)
 		18 : currentSolvedCheckpoints (List<int>)
 		4C : currentLevelType (WorkshopItemSource)
-		1C : editorLanguage (str)
-		50 : editorStartLevel (int)
-		54 : editorStartCheckpoint (int)
-		20 : defaultLight (UnityEngine.Light)
 		58 : state (GameState)
 		5C : passedLevel (bool)
 		24 : playerPrefab (Multiplayer.NetPlayer)
 		28 : cameraPrefab (UnityEngine.Camera)
 		2C : ragdollPrefab (Ragdoll)
-		30 : skyboxMaterial (UnityEngine.Material)
 		34 : gameProgress (GameProgress)
 		5D : singleRun (bool)
-		5E : HasSceneLoaded (bool)
-		38 : bundle (UnityEngine.AssetBundle)
-		3C : workshopLevel (HumanAPI.WorkshopLevelMetadata)
-		5F : workshopLevelIsCustom (bool)
-		60 : skyColor (UnityEngine.Color)
+	v1074461
+		44 : currentLevelNumber (int)
+		48 : currentCheckpointNumber (int)
+		5C : state (GameState)
 	*/
 		// may use the below to differentiate offsets in the future if they change the code in Game *again*
 	//vars.log("ModuleMemorySize: " + modules.First().ModuleMemorySize.ToString());
@@ -181,7 +173,7 @@ init		// called when the script finds the game process
 	//}
 	//else
 	//{
-	vars.offsetGameState = 0x58;
+	vars.offsetGameState = 0x5C;
 	vars.offsetLevel = 0x44;
 	vars.offsetCheckpoint = 0x48;
 	//}
