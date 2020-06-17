@@ -33,8 +33,14 @@ startup		// called when the autosplitter script itself starts
 			settings.SetToolTip("splitOnCheckpoint", "MUST BE ENABLED FOR A SUBMITTED CHECKPOINT% RUN TO BE CONSIDERED VALID");
 		settings.Add("resetOnCheckpointMiss", true, "Reset the timer if a checkpoint is skipped", "cp%");
 			settings.SetToolTip("resetOnCheckpointMiss", "Recommended so you do not waste time on an invalid run\n\nMUST BE ENABLED FOR A SUBMITTED CHECKPOINT% RUN TO BE CONSIDERED VALID");
-		settings.Add("popupOnCheckpointMiss", true, "Notify you when a checkpoint is missed", "resetOnCheckpointMiss");
-			settings.SetToolTip("popupOnCheckpointMiss", "Creates a priority pop-up message with info on the exact reason the run was reset");
+			settings.Add("popupOnCheckpointMiss", true, "Notify you when a checkpoint is missed", "resetOnCheckpointMiss");
+				settings.SetToolTip("popupOnCheckpointMiss", "Creates a priority pop-up message with info on the exact reason the run was reset");
+	settings.Add("noJump%", false, "No-Jump%");
+		settings.SetToolTip("noJump%", "Toggle for the No-Jump% autosplitter\nAll nested options are considered disabled if this is disabled");
+		settings.Add("resetOnJump", true, "Reset the timer if you jump", "noJump%");
+			settings.SetToolTip("resetOnJump", "Recommended so you do not waste time on an invalid run");
+			settings.Add("popupOnJump", false, "Notify you when you jump in a run", "resetOnJump");
+				settings.SetToolTip("popupOnJump", "Creates a priority pop-up message with info on the exact reason the run was reset");
 
 	vars.log = (Action<string>)
 	((text) =>
@@ -74,6 +80,8 @@ startup		// called when the autosplitter script itself starts
 	vars.ptrGameInstance = IntPtr.Zero;
 	vars.ptrClimbCheat = IntPtr.Zero;
 	vars.ptrThrowCheat = IntPtr.Zero;
+	vars.ptrHumanInstance = IntPtr.Zero;
+	vars.ptrHumanControls = IntPtr.Zero;
 	vars.offsetGameState = 0x0;
 	vars.offsetLevel = 0x0;
 	vars.offsetCheckpoint = 0x0;
@@ -85,6 +93,7 @@ init		// called when the script finds the game process
 
 	IntPtr gameInitializeAddress = IntPtr.Zero;
 	IntPtr cheatStartAddress = IntPtr.Zero;
+	IntPtr humanEnableAddress = IntPtr.Zero;
 	old.gameState = 0;
 	current.gameState = 0;
 	old.level = -1;
@@ -95,6 +104,14 @@ init		// called when the script finds the game process
 	current.climbCheat = false;
 	old.throwCheat = false;
 	current.throwCheat = false;
+	old.jumpPressed = false;
+	current.jumpPressed = false;
+	old.grounded = false;
+	current.grounded = false;
+	old.unconsciousTime = 0.0f;
+	current.unconsciousTime = 0.0f;
+	old.jumping = false;
+	current.jumping = false;
 	
 	vars.log("Searching for game::Initialize signature and CheatCodes::Start signature...");
 	foreach (var page in game.MemoryPages())
@@ -108,7 +125,7 @@ init		// called when the script finds the game process
 				"55 8B EC 57 83 EC 04 8B 7D 08 B8 ?? ?? ?? ?? 89 38 83 EC 0C 6A 00 E8 ?? ?? ?? 00 83 C4 10 BA ?? ?? ?? ?? E8 ?? ?? ?? ?? BA ?? ?? ?? ?? 83 EC 0C 57 E8 ?? ?? ?? ?? 83 C4 10 83 EC 0C 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 10 83 EC 0C 89 45 F8 50 E8 ?? ?? ?? 00 83 C4 10 8B 45 F8 89 47 ?? BA ?? ?? ?? ?? 83 EC 0C 57 E8 ?? ?? ?? 00 83 C4 10 89 47 ?? C7 47 ?? 00 00 00 00 8B 47 10 8B 40 0C 48 89 47 ?? 8D 65 FC 5F C9 C3")
 			);
 		}
-		if ((IntPtr)cheatStartAddress == IntPtr.Zero)
+		if (cheatStartAddress == IntPtr.Zero)
 		{
 			cheatStartAddress = scanner.Scan
 			(
@@ -119,29 +136,59 @@ init		// called when the script finds the game process
 		if (gameInitializeAddress != IntPtr.Zero && (IntPtr)cheatStartAddress != IntPtr.Zero)
 			break;
 	}
+	if (settings["noJump%"])
+	{
+		foreach (var page in game.MemoryPages())
+		{
+			var scanner = new SignatureScanner(game, page.BaseAddress, (int)page.RegionSize);
+			if (humanEnableAddress == IntPtr.Zero)
+			{
+				humanEnableAddress = scanner.Scan
+				(
+					new SigScanTarget(0,
+					"55 8B EC 57 83 EC 04 8B 7D 08 8B 05 24 3E ?? 05 83 EC 08 57 50 39 00 E8")
+				);
+			}
+			if (humanEnableAddress != IntPtr.Zero)
+				break;
+		}
+	}
 	
-	if (gameInitializeAddress == IntPtr.Zero || (IntPtr)cheatStartAddress == IntPtr.Zero)
+	if (gameInitializeAddress == IntPtr.Zero || cheatStartAddress == IntPtr.Zero || (settings["noJump%"] && humanEnableAddress == IntPtr.Zero))
 	{
 		// Waiting for the game to have booted up. This is a pretty ugly work
 		// around, but we don't really know when the game is booted or where the
 		// struct will be, so to reduce the amount of searching we are doing, we
 		// sleep a bit between every attempt.
 		Thread.Sleep(1000);
-		throw new Exception("Could not find the desired pointer");
+		throw new Exception("Could not find the desired pointer(s)");
 	}
 
-	vars.log("game::Initialize address found at: 0x" + gameInitializeAddress.ToString("X8"));
-	vars.log("CheatCodes::Start address found at: 0x" + cheatStartAddress.ToString("X8"));
-	vars.log("Extracting game.Instance pointer from game::Initialize offset by 0xB...");
-	vars.log("Extracting CheatCodes.climbCheat and CheatCodes.throwCheat from CheatCodes::Start offset by 0x2CC and 0x2ED, respectively...");
+	vars.log("Game::Initialize address found at: 0x" + gameInitializeAddress.ToString("X8"));
+	vars.log("Extracting Game.instance pointer from Game::Initialize offset by 0xB...");
 	IntPtr mPtrGameInstance = memory.ReadPointer(gameInitializeAddress + 0xB);
 	vars.ptrGameInstance = memory.ReadPointer(mPtrGameInstance); // UNLIMITED POWER...shoutouts to Tedder from the LiveSplit team for helping me get to this point!!!
-	vars.log("game.Instance address found at: 0x" + vars.ptrGameInstance.ToString("X8"));
+	vars.log("Game.instance address found at: 0x" + vars.ptrGameInstance.ToString("X8"));
 
+	vars.log("CheatCodes::Start address found at: 0x" + cheatStartAddress.ToString("X8"));
+	vars.log("Extracting CheatCodes.climbCheat and CheatCodes.throwCheat from CheatCodes::Start offset by 0x2CC and 0x2ED, respectively...");
 	vars.ptrClimbCheat = memory.ReadPointer((IntPtr)cheatStartAddress + 0x2CC);
 	vars.ptrThrowCheat = memory.ReadPointer((IntPtr)cheatStartAddress + 0x2ED);
 	vars.log("CheatCodes.climbCheat address found at: 0x" + vars.ptrClimbCheat.ToString("X8"));
 	vars.log("CheatCodes.throwCheat address found at: 0x" + vars.ptrThrowCheat.ToString("X8"));
+
+	if (settings["noJump%"])
+	{
+		vars.log("Human::OnEnable address found at: 0x" + humanEnableAddress.ToString("X8"));
+		vars.log("Extracting Human.instance pointer from Human::OnEnable offset by 0x20...");
+		IntPtr mPtrHumanInstance = memory.ReadPointer(humanEnableAddress + 0x20);
+		vars.ptrHumanInstance = memory.ReadPointer(mPtrHumanInstance);
+		vars.log("Human.instance address found at: 0x" + vars.ptrHumanInstance.ToString("X8"));
+
+		vars.log("Extracting Human.controls from Human.instance offset by 0x14...");
+		vars.ptrHumanControls = memory.ReadPointer((IntPtr)vars.ptrHumanInstance + 0x14);
+		vars.log("Human.controls address found at: 0x" + vars.ptrHumanControls.ToString("X8"));
+	}
 
 	/* The following offsets/fields are for the Game class in HFF, which we can access via the vars.ptrGameInstance pointer
 	
@@ -163,6 +210,83 @@ init		// called when the script finds the game process
 		48 : currentCheckpointNumber (int)
 		5C : state (GameState)
 	*/
+
+	/* The following offsets/fields are for the Human class in HFF, which we can access via the vars.ptrHumanInstance pointer
+
+	[offset : fieldName (class/type)]
+	 v1074461
+		3C : targetDirection (UnityEngine.Vector3)
+		48 : targetLiftDirection (UnityEngine.Vector3)
+		54 : jump (bool)
+		55 : disableInput (bool)
+		0C : player (Multiplayer.NetPlayer)
+		10 : ragdoll (Ragdoll)
+		14 : controls (HumanControls)
+		18 : groundManager (GroundManager)
+		1C : grabManager (GrabManager)
+		20 : motionControl2 (HumanMotion2)
+		58 : state (HumanState)
+		5C : onGround (bool)
+		60 : groundAngle (float)
+		64 : hasGrabbed (bool)
+		65 : isClimbing (bool)
+		24 : grabbedByHuman (Human)
+		68 : wakeUpTime (float)
+		6C : maxWakeUpTime (float)
+		70 : unconsciousTime (float)
+		74 : maxUnconsciousTime (float)
+		78 : grabStartPosition (UnityEngine.Vector3)
+		28 : rigidbodies (UnityEngine.Rigidbody[])
+		2C : velocities (UnityEngine.Vector3[])
+		84 : weight (float)
+		88 : mass (float)
+		8C : lastVelocity (UnityEngine.Vector3)
+		98 : totalHit (float)
+		9C : lastFrameHit (float)
+		A0 : thisFrameHit (float)
+		A4 : fallTimer (float)
+		A8 : groundDelay (float)
+		AC : jumpDelay (float)
+		B0 : slideTimer (float)
+		30 : groundAngles (float[])
+		B4 : groundAnglesIdx (int)
+		B8 : groundAnglesSum (float)
+		BC : lastGroundAngle (float)
+		34 : identity (Multiplayer.NetIdentity)
+	*/
+
+	/* The following offsets/fields are for the HumanControls class in HFF, which we can access via the vars.ptrHumanControls pointer
+
+	[offset : fieldName (class/type)]
+	 v1074461
+		1C : allowMouse (bool)
+		20 : keyLookCache (UnityEngine.Vector2)
+		28 : leftExtend (float)
+		2C : rightExtend (float)
+		30 : leftExtendCache (float)
+		34 : rightExtendCache (float)
+		38 : leftGrab (bool)
+		39 : rightGrab (bool)
+		3A : unconscious (bool)
+		3B : holding (bool)
+		3C : jump (bool)
+		3D : shootingFirework (bool)
+		48 : mouseControl (bool)
+		4C : cameraPitchAngle (float)
+		50 : cameraYawAngle (float)
+		54 : targetPitchAngle (float)
+		58 : targetYawAngle (float)
+		5C : walkLocalDirection (UnityEngine.Vector3)
+		68 : walkDirection (UnityEngine.Vector3)
+		74 : unsmoothedWalkSpeed (float)
+		78 : walkSpeed (float)
+		14 : mouseInputX (List<float>)
+		18 : mouseInputY (List<float)
+		7C : stickDirection (UnityEngine.Vector3)
+		88 : oldStickDirection (UnityEngine.Vector3)
+		94 : previousLeftExtend (float)
+		98 : previousRightExtend (float)
+	*/
 		// may use the below to differentiate offsets in the future if they change the code in Game *again*
 	//vars.log("ModuleMemorySize: " + modules.First().ModuleMemorySize.ToString());
 	//if (modules.First().ModuleMemorySize == 659456)
@@ -182,6 +306,12 @@ init		// called when the script finds the game process
 	current.checkpoint = memory.ReadValue<int>((IntPtr)vars.ptrGameInstance + (int)vars.offsetCheckpoint);
 	current.climbCheat = memory.ReadValue<bool>((IntPtr)vars.ptrClimbCheat);
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
+	if (settings["noJump%"])
+	{
+		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x3C);
+		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + 0x5C);
+		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + 0x70);
+	}
 
 	refreshRate = 60;
 }
@@ -212,12 +342,29 @@ update		// updates a certain number of times a second. update rate is determined
 	current.checkpoint = memory.ReadValue<int>((IntPtr)vars.ptrGameInstance + (int)vars.offsetCheckpoint);
 	current.climbCheat = memory.ReadValue<bool>((IntPtr)vars.ptrClimbCheat);
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
+	if (settings["noJump%"])
+	{
+		if (vars.ptrHumanInstance == IntPtr.Zero || vars.ptrHumanControls == IntPtr.Zero)
+			throw new Exception("No-Jump% autosplitter enabled while game was open; restarting...");
+		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x3C);
+		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + 0x5C);
+		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + 0x70);
+		current.jumping = current.jumpPressed && old.grounded && current.unconsciousTime == 0.0f;
+
+		if (current.jumping && !old.jumping)
+		{
+			vars.log("Player jumped!");
+		}
+	}
 		// Code for debugging, making sure that I have the right addresses and such
 	//vars.log("gameState value = " + current.gameState.ToString());
 	//vars.log("currentLevel value = " + current.level.ToString());
 	//vars.log("currentCheckpoint value = " + current.checkpoint.ToString());
 	//vars.log("currentClimbCheat value = " + current.climbCheat.ToString());
 	//vars.log("currentThrowCheat value = " + current.throwCheat.ToString());
+	//vars.log("currentJumpPressed value = " + current.jumpPressed.ToString());
+	//vars.log("currentGrounded value = " + current.grounded.ToString());
+	//vars.log("currentUnconsciousTime value = " + current.unconsciousTime.ToString());
 	
 		// if player was in Main Menu and is now loading, then set var to true
 	if (old.gameState == 0 && current.gameState == 2)
@@ -312,10 +459,10 @@ reset		// returning true resets the timer
 			)
 				return false;
 			
+			int skippedCps = current.checkpoint - old.checkpoint - 1;
+			vars.resetMessageContents = "Skipped " + (skippedCps == 1 ? "a" : skippedCps.ToString()) + " checkpoint" + (skippedCps == 1 ? " " : "s ") + "(current cp: " + current.checkpoint.ToString() + ", expected cp: " + (old.checkpoint + 1).ToString() + ").";
 			if (settings["popupOnCheckpointMiss"])
 			{
-				int skippedCps = current.checkpoint - old.checkpoint - 1;
-				vars.resetMessageContents = "Skipped " + (skippedCps == 1 ? "a" : skippedCps.ToString()) + " checkpoint" + (skippedCps == 1 ? " " : "s ") + "(current cp: " + current.checkpoint.ToString() + ", expected cp: " + (old.checkpoint + 1).ToString() + ").";
 				vars.resetMessageTitle = "Skipped Checkpoint(s)";
 				vars.ruleBreakReset = true;
 			}
@@ -328,16 +475,27 @@ reset		// returning true resets the timer
 				// then reset the timer
 			if ((old.gameState == 3 && current.gameState == 2 && !vars.loadedFromMainMenu) && current.checkpoint != vars.lastCpPerLevel[old.level])
 			{
+				int skippedCps = vars.lastCpPerLevel[old.level] - current.checkpoint;
+				vars.resetMessageContents = "Prematurely completed the level " + (skippedCps == 1 ? "a" : skippedCps.ToString()) + " checkpoint" + (skippedCps == 1 ? " " : "s ") + "early (current cp: " + current.checkpoint.ToString() + ", level's last cp: " + vars.lastCpPerLevel[old.level].ToString() + ").";
 				if (settings["popupOnCheckpointMiss"])
 				{
-					int skippedCps = vars.lastCpPerLevel[old.level] - current.checkpoint;
-					vars.resetMessageContents = "Prematurely completed the level " + (skippedCps == 1 ? "a" : skippedCps.ToString()) + " checkpoint" + (skippedCps == 1 ? " " : "s ") + "early (current cp: " + current.checkpoint.ToString() + ", level's last cp: " + vars.lastCpPerLevel[old.level].ToString() + ").";
 					vars.resetMessageTitle = "Beat Level Early";
 					vars.ruleBreakReset = true;
 				}
 				return true;
 			}
 		}
+	}
+
+	if (settings["noJump%"] && settings["resetOnJump"] && current.jumping && !old.jumping)
+	{
+		vars.resetMessageContents = "Pressed the jump button in No-Jump%.";
+		if (settings["popupOnJump"])
+		{
+			vars.resetMessageTitle = "Player Jumped";
+			vars.ruleBreakReset = true;
+		}
+		return true;
 	}
 		// if climbCheat or throwCheat somehow get enabled mid-run, reset run and let them know why it has been reset
 		// there's no way this could "accidentally" happen; this is so cheats can't sneakily be enabled with Cheat Engine via hotkey
