@@ -205,7 +205,7 @@ init		// called when the script finds the game process
 		2C : ragdollPrefab (Ragdoll)
 		34 : gameProgress (GameProgress)
 		5D : singleRun (bool)
-	v1074461 | v1074662
+	 v1074461 | v1074662
 		44 : currentLevelNumber (int)
 		48 : currentCheckpointNumber (int)
 		5C : state (GameState)
