@@ -35,12 +35,12 @@ startup		// called when the autosplitter script itself starts
 			settings.SetToolTip("resetOnCheckpointMiss", "Recommended so you do not waste time on an invalid run\n\nMUST BE ENABLED FOR A SUBMITTED CHECKPOINT% RUN TO BE CONSIDERED VALID");
 			settings.Add("popupOnCheckpointMiss", true, "Notify you when a checkpoint is missed", "resetOnCheckpointMiss");
 				settings.SetToolTip("popupOnCheckpointMiss", "Creates a priority pop-up message with info on the exact reason the run was reset");
-	settings.Add("noJump%", false, "No-Jump%");
+	/* settings.Add("noJump%", false, "No-Jump%");
 		settings.SetToolTip("noJump%", "Toggle for the No-Jump% autosplitter\nAll nested options are considered disabled if this is disabled");
 		settings.Add("resetOnJump", true, "Reset the timer if you jump", "noJump%");
 			settings.SetToolTip("resetOnJump", "Recommended so you do not waste time on an invalid run");
 			settings.Add("popupOnJump", false, "Notify you when you jump in a run", "resetOnJump");
-				settings.SetToolTip("popupOnJump", "Creates a priority pop-up message with info on the exact reason the run was reset");
+				settings.SetToolTip("popupOnJump", "Creates a priority pop-up message with info on the exact reason the run was reset"); */
 
 	vars.log = (Action<string>)
 	((text) =>
@@ -80,8 +80,8 @@ startup		// called when the autosplitter script itself starts
 	vars.ptrGameInstance = IntPtr.Zero;
 	vars.ptrClimbCheat = IntPtr.Zero;
 	vars.ptrThrowCheat = IntPtr.Zero;
-	vars.ptrHumanInstance = IntPtr.Zero;
-	vars.ptrHumanControls = IntPtr.Zero;
+	//vars.ptrHumanInstance = IntPtr.Zero;
+	//vars.ptrHumanControls = IntPtr.Zero;
 	vars.offsetGameState = 0x0;
 	vars.offsetLevel = 0x0;
 	vars.offsetCheckpoint = 0x0;
@@ -136,7 +136,7 @@ init		// called when the script finds the game process
 		if (gameInitializeAddress != IntPtr.Zero && (IntPtr)cheatStartAddress != IntPtr.Zero)
 			break;
 	}
-	if (settings["noJump%"])
+	/* if (settings["noJump%"])
 	{
 		foreach (var page in game.MemoryPages())
 		{
@@ -152,7 +152,7 @@ init		// called when the script finds the game process
 			if (humanEnableAddress != IntPtr.Zero)
 				break;
 		}
-	}
+	} */
 	
 	if (gameInitializeAddress == IntPtr.Zero || cheatStartAddress == IntPtr.Zero /*|| (settings["noJump%"] && humanEnableAddress == IntPtr.Zero)*/)
 	{
@@ -165,7 +165,7 @@ init		// called when the script finds the game process
 	}
 
 	// note to self: to find the "instance" address when Jit-ing the method that should contain the instance assignment,
-	// look for "mov eax,[05308E20]" or similar. the Bytes for this example would be "B8 208E3005";
+	// look for "mov eax,05308E20" or similar. the Bytes for this example would be "B8 208E3005";
 	// if this was "Game::Initialize+a", then the instance would be at "Game::Initialize+b", as "B8" is the "mov" and "208E3005" starts at +b.
 
 	vars.log("Game::Initialize address found at: 0x" + gameInitializeAddress.ToString("X8"));
@@ -181,18 +181,19 @@ init		// called when the script finds the game process
 	vars.log("CheatCodes.climbCheat address found at: 0x" + vars.ptrClimbCheat.ToString("X8"));
 	vars.log("CheatCodes.throwCheat address found at: 0x" + vars.ptrThrowCheat.ToString("X8"));
 
-	if (settings["noJump%"])
+	/* if (settings["noJump%"])
 	{
 		vars.log("Human::OnEnable address found at: 0x" + humanEnableAddress.ToString("X8"));
-		vars.log("Extracting Human.instance pointer from Human::OnEnable offset by 0xB...");
-		IntPtr mPtrHumanInstance = memory.ReadPointer(humanEnableAddress + 0xB);
+		vars.log("Extracting Human.instance pointer from Human::OnEnable offset by 0xC...");
+		IntPtr mmPtrHumanInstance = memory.ReadPointer(humanEnableAddress + 0xC);
+		IntPtr mPtrHumanInstance = memory.ReadPointer(mmPtrHumanInstance);
 		vars.ptrHumanInstance = memory.ReadPointer(mPtrHumanInstance);
 		vars.log("Human.instance address found at: 0x" + vars.ptrHumanInstance.ToString("X8"));
 
 		vars.log("Extracting Human.controls from Human.instance offset by 0x14...");
 		vars.ptrHumanControls = memory.ReadPointer((IntPtr)vars.ptrHumanInstance + 0x14);
 		vars.log("Human.controls address found at: 0x" + vars.ptrHumanControls.ToString("X8"));
-	}
+	} */
 
 	/* The following offsets/fields are for the Game class in HFF, which we can access via the vars.ptrGameInstance pointer
 	
@@ -310,12 +311,12 @@ init		// called when the script finds the game process
 	current.checkpoint = memory.ReadValue<int>((IntPtr)vars.ptrGameInstance + (int)vars.offsetCheckpoint);
 	current.climbCheat = memory.ReadValue<bool>((IntPtr)vars.ptrClimbCheat);
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
-	if (settings["noJump%"])
+	/* if (settings["noJump%"])
 	{
-		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x54);
+		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x3C);
 		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + 0x5C);
 		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + 0x70);
-	}
+	} */
 
 	refreshRate = 60;
 }
@@ -346,10 +347,10 @@ update		// updates a certain number of times a second. update rate is determined
 	current.checkpoint = memory.ReadValue<int>((IntPtr)vars.ptrGameInstance + (int)vars.offsetCheckpoint);
 	current.climbCheat = memory.ReadValue<bool>((IntPtr)vars.ptrClimbCheat);
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
-	if (settings["noJump%"])
+	/* if (settings["noJump%"])
 	{
 		if (vars.ptrHumanInstance == IntPtr.Zero || vars.ptrHumanControls == IntPtr.Zero)
-			throw new Exception("No-Jump% autosplitter enabled while game was open; restarting...");
+			throw new Exception("No-Jump% autosplitter enabled while game was open OR bad pattern for HumanControls; restarting...");
 		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x3C);
 		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + 0x5C);
 		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + 0x70);
@@ -359,7 +360,7 @@ update		// updates a certain number of times a second. update rate is determined
 		{
 			vars.log("Player jumped!");
 		}
-	}
+	} */
 		// Code for debugging, making sure that I have the right addresses and such
 	//vars.log("gameState value = " + current.gameState.ToString());
 	//vars.log("currentLevel value = " + current.level.ToString());
@@ -491,7 +492,7 @@ reset		// returning true resets the timer
 		}
 	}
 
-	if (settings["noJump%"] && settings["resetOnJump"] && current.jumping && !old.jumping)
+	/* if (settings["noJump%"] && settings["resetOnJump"] && current.jumping && !old.jumping)
 	{
 		vars.resetMessageContents = "Pressed the jump button in No-Jump%.";
 		if (settings["popupOnJump"])
@@ -500,7 +501,7 @@ reset		// returning true resets the timer
 			vars.ruleBreakReset = true;
 		}
 		return true;
-	}
+	} */
 		// if climbCheat or throwCheat somehow get enabled mid-run, reset run and let them know why it has been reset
 		// there's no way this could "accidentally" happen; this is so cheats can't sneakily be enabled with Cheat Engine via hotkey
 	if (current.climbCheat || current.throwCheat)
