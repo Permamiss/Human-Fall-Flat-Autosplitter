@@ -164,6 +164,10 @@ init		// called when the script finds the game process
 		throw new Exception("Could not find the desired pointer(s)");
 	}
 
+	// note to self: to find the "instance" address when Jit-ing the method that should contain the instance assignment,
+	// look for "mov eax,[05308E20]" or similar. the Bytes for this example would be "B8 208E3005";
+	// if this was "Game::Initialize+a", then the instance would be at "Game::Initialize+b", as "B8" is the "mov" and "208E3005" starts at +b.
+
 	vars.log("Game::Initialize address found at: 0x" + gameInitializeAddress.ToString("X8"));
 	vars.log("Extracting Game.instance pointer from Game::Initialize offset by 0xB...");
 	IntPtr mPtrGameInstance = memory.ReadPointer(gameInitializeAddress + 0xB);
@@ -180,8 +184,8 @@ init		// called when the script finds the game process
 	if (settings["noJump%"])
 	{
 		vars.log("Human::OnEnable address found at: 0x" + humanEnableAddress.ToString("X8"));
-		vars.log("Extracting Human.instance pointer from Human::OnEnable offset by 0x20...");
-		IntPtr mPtrHumanInstance = memory.ReadPointer(humanEnableAddress + 0x20);
+		vars.log("Extracting Human.instance pointer from Human::OnEnable offset by 0xB...");
+		IntPtr mPtrHumanInstance = memory.ReadPointer(humanEnableAddress + 0xB);
 		vars.ptrHumanInstance = memory.ReadPointer(mPtrHumanInstance);
 		vars.log("Human.instance address found at: 0x" + vars.ptrHumanInstance.ToString("X8"));
 
@@ -308,7 +312,7 @@ init		// called when the script finds the game process
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
 	if (settings["noJump%"])
 	{
-		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x3C);
+		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + 0x54);
 		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + 0x5C);
 		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + 0x70);
 	}
