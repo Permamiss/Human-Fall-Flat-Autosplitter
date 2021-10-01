@@ -214,7 +214,7 @@ init		// called when the script finds the game process
 		current.unconsciousTime = memory.ReadValue<float>((IntPtr)vars.ptrHumanInstance + (int)vars.offsetUnconsciousTime);
 	}
 
-	refreshRate = 60;
+	refreshRate = 30;
 }
 
 start		// returning true starts the timer if not started
@@ -350,10 +350,12 @@ reset		// returning true resets the timer
 				(
 						// the previous checkpoint was 6 and is now 11 (due to Dark's choose-a-path checkpoint system)
 					(old.checkpoint == 6 && current.checkpoint == 11) ||
-						// the previous checkpoint was 17 and the new checkpoint is [19 or 20] (17 can lead into 18, 19, or 20 depending on which item you bring up first) (Item 1)
-					(old.checkpoint == 17 && (current.checkpoint == 19 || current.checkpoint == 20)) ||
-						// the previous checkpoint was [18 or 19 or 20] and the new checkpoint is [21 or 22 or 23] (necessary because: 18 jumps to [21 or 22], 19 jumps to [21 or 23], 20 jumps to [22 or 23]) (Item 2)
-					((old.checkpoint == 18 || old.checkpoint == 19 || old.checkpoint == 20) && (current.checkpoint == 21 || current.checkpoint == 22 || current.checkpoint == 23)) ||
+						// the previous checkpoint was 17 and the new checkpoint is [19 or 20] (17 can lead into 18, 19, or 20 depending on which item you bring up first) (Item 1), including the possibility that the player got 2 items on the elevator landing between frames (which would mean they got checkpoint 18 and then checkpoint 21, 22, or 23)
+					//(old.checkpoint == 17 && (current.checkpoint == 19 || current.checkpoint == 20 || current.checkpoint == 21 || current.checkpoint == 22 || current.checkpoint == 23)) ||
+					(old.checkpoint == 17 && (current.checkpoint >= 19 && current.checkpoint <= 23)) ||
+						// the previous checkpoint was [18 or 19 or 20] and the new checkpoint is [21 or 22 or 23] (necessary because: 18 jumps to [21 or 22], 19 jumps to [21 or 23], 20 jumps to [22 or 23]) (Item 2), including hte possibility that the player got 2 items on the elevator landing between frames (which would mean they got checkpoint 21, 22, or 23 and then checkpoint 24)
+					//((old.checkpoint == 18 || old.checkpoint == 19 || old.checkpoint == 20) && (current.checkpoint == 21 || current.checkpoint == 22 || current.checkpoint == 23 || current.checkpoint == 24)) ||
+					((old.checkpoint == 18 || old.checkpoint == 19 || old.checkpoint == 20) && (current.checkpoint >= 21 && current.checkpoint <= 24)) ||
 						// the previous checkpoint was [21 or 22] and the new checkpoint is 24 (necessary because bringing up the last item causes the checkpoint to jump to 24, which is a problem when previous checkpoint was 21 or 22) (Item 3/All Items (Red Wire, Battery 1, Battery 2))
 					((old.checkpoint == 21 || old.checkpoint == 22) && current.checkpoint == 24)
 				)
