@@ -315,21 +315,28 @@ split		// returning true will split (advances to the next split)
 				return true;
 		}
 	}
-		// if the "cp%" and "splitOnCheckpoint" settings are enabled and we have advanced a checkpoint, then split
-	if (settings["cp%"] && settings["splitOnCheckpoint"] && (current.checkpoint > old.checkpoint || vars.splitAgain))
+		// if the "cp%" and "splitOnCheckpoint" settings are enabled
+	if (settings["cp%"] && settings["splitOnCheckpoint"])
 	{
-		if (
-			current.level == 9 &&
-			(
-				(old.checkpoint == 17 && (current.checkpoint >= 21 && current.checkpoint <= 23)) ||
-				((old.checkpoint >= 18 && old.checkpoint <= 20) && current.checkpoint == 24)
+		if (vars.splitAgain)
+		{
+			vars.splitAgain = false;
+			return true;
+		}
+		if (current.checkpoint > old.checkpoint)
+		{
+			if (
+				current.level == 9 &&
+				(
+					(old.checkpoint == 17 && (current.checkpoint >= 21 && current.checkpoint <= 23)) ||
+					((old.checkpoint >= 18 && old.checkpoint <= 20) && current.checkpoint == 24)
+				)
 			)
-		)
-			vars.splitAgain = true; // makes it so that if 2 items are brought up in the same "frame" then it will split twice instead of just once
-		return true;
-		// if the player was playing and directly goes to Main Menu without loading (thus far only relevant with the "Extra Dreams" levels), then split
+				vars.splitAgain = true; // makes it so that if 2 items are brought up in the same "frame" then it will split twice instead of just once
+			return true;
+		}
 	}
-	vars.splitAgain = false;
+		// if the player was playing and directly goes to Main Menu without loading (thus far only relevant with the "Extra Dreams" levels), then split
 	if (old.gameState == 3 && current.gameState == 0)
 		return true;
 }
