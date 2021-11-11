@@ -195,7 +195,7 @@ init		// called when the script finds the game process
 		vars.log("Human.controls address found at: 0x" + vars.ptrHumanControls.ToString("X8"));
 	}
 
-	vars.offsetGameState = 0x5C;
+	vars.offsetGameState = 0x60;
 	vars.offsetLevel = 0x44;
 	vars.offsetCheckpoint = 0x48;
 
@@ -206,9 +206,9 @@ init		// called when the script finds the game process
 	current.throwCheat = memory.ReadValue<bool>((IntPtr)vars.ptrThrowCheat);
 	if (settings["noJump%"])
 	{
-		vars.offsetJumpPressed = 0x3C;
-		vars.offsetGrounded = 0x5C;
-		vars.offsetUnconsciousTime = 0x70;
+		vars.offsetJumpPressed = 0x48;
+		vars.offsetGrounded = 0x60;
+		vars.offsetUnconsciousTime = 0x74;
 
 		current.jumpPressed = memory.ReadValue<bool>((IntPtr)vars.ptrHumanControls + (int)vars.offsetJumpPressed);
 		current.grounded = memory.ReadValue<bool>((IntPtr)vars.ptrHumanInstance + (int)vars.offsetGrounded);
